@@ -1,0 +1,13 @@
+[package]
+name = "chunk_streamer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+autonomi = "0.4.5"
+bytes = "1.10.1"
+log = "0.4.27"
+self_encryption = "0.30.0"
+tokio = "1.45.0"
+futures = "0.3.31"
+futures-util = "0.3.31"
