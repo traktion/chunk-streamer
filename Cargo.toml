@@ -2,6 +2,14 @@
 name = "chunk_streamer"
 version = "0.1.0"
 edition = "2024"
+authors = ["Paul Green"]
+description = "Chunk Streamer library streams Autonomi data as a futures::stream"
+readme = "README.md"
+repository = "https://github.com/traktion/chunk-streamer"
+license = "GPL-3.0"
+keywords = ["autonomi"]
+categories = ["network-programming"]
+exclude = [".github", ".gitignore", "target/"]
 
 [dependencies]
 autonomi = "0.4.5"
