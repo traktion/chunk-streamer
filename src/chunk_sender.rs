@@ -4,7 +4,7 @@ use log::info;
 use self_encryption::{DataMap, Error};
 use tokio::sync::mpsc::{Sender};
 use tokio::task::JoinHandle;
-use crate::chunk_streamer::chunk_fetcher::ChunkFetcher;
+use crate::chunk_fetcher::ChunkFetcher;
 
 pub struct ChunkSender {
     sender: Sender<JoinHandle<Result<Bytes, Error>>>,

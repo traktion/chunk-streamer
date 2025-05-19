@@ -1,12 +1,8 @@
 use autonomi::Client;
-use chunk_receiver::ChunkReceiver;
-use chunk_sender::ChunkSender;
 use self_encryption::DataMap;
 use tokio::sync::mpsc::channel;
-
-pub mod chunk_receiver;
-pub mod chunk_sender;
-pub mod chunk_fetcher;
+use crate::chunk_receiver::ChunkReceiver;
+use crate::chunk_sender::ChunkSender;
 
 pub struct ChunkStreamer {
     id: String,
