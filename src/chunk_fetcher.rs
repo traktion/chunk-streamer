@@ -21,15 +21,20 @@ impl ChunkFetcher {
         position_end: u64
     ) -> Result<Bytes, Error> {
         info!("fetch from data map chunk");
+        
+        // note: range queries can be u64, but autonomi only expects usize, so safely convert
+        let position_start_usize = usize::try_from(position_start).ok().unwrap_or_else(|| usize::MAX);
+        let position_end_usize = usize::try_from(position_end).ok().unwrap_or_else(|| usize::MAX);
+        
         let stream_chunk_size = data_map.infos().get(0).unwrap().src_size;
-        let chunk_position = (position_start / stream_chunk_size as u64) as usize; // chunk_info.src_size needed for exact size, as last chunk size varies 
-        let chunk_start_offset = (position_start % stream_chunk_size as u64) as usize;
+        let chunk_position = position_start_usize / stream_chunk_size; // chunk_info.src_size needed for exact size, as last chunk size varies
+        let chunk_start_offset = position_start_usize % stream_chunk_size;
         
         info!("decrypt chunk in position=[{}] of [{}], offset=[{}], total_size=[{}]", chunk_position+1, data_map.infos().len(), chunk_start_offset, data_map.file_size());
         match data_map.infos().get(chunk_position) {
             Some(chunk_info) => {
                 info!("get chunk from data map with hash {:?} and size {}", chunk_info.dst_hash, chunk_info.src_size);
-                let derived_chunk_size = self.get_chunk_size(position_start as usize, position_end as usize, chunk_info.src_size) - chunk_start_offset;
+                let derived_chunk_size = self.get_chunk_size(position_start_usize, position_end_usize, chunk_info.src_size) - chunk_start_offset;
                 let chunk = self.autonomi_client.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await.expect("get chunk failed");
 
                 info!("self decrypt chunk: {:?}", chunk_info.dst_hash);
