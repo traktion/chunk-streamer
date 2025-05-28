@@ -34,15 +34,12 @@ impl ChunkFetcher {
         match data_map.infos().get(chunk_position) {
             Some(chunk_info) => {
                 info!("get chunk from data map with hash {:?} and size {}", chunk_info.dst_hash, chunk_info.src_size);
-                let derived_chunk_size = self.get_chunk_size(position_start_usize, position_end_usize, chunk_info.src_size) - chunk_start_offset;
+                let derived_chunk_size = self.get_chunk_size(position_start_usize, position_end_usize, chunk_info.src_size, chunk_start_offset);
                 let chunk = self.autonomi_client.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await.expect("get chunk failed");
 
                 info!("self decrypt chunk: {:?}", chunk_info.dst_hash);
                 let encrypted_chunks = &[EncryptedChunk { index: chunk_position, content: chunk.clone().value }];
-                match self_encryption::decrypt_range(&data_map, encrypted_chunks, chunk_start_offset, derived_chunk_size) {
-                    Ok(chunk_bytes) => Ok(chunk_bytes),
-                    Err(e) => Err(e)
-                }
+                self_encryption::decrypt_range(&data_map, encrypted_chunks, chunk_start_offset, derived_chunk_size)
             }
             None => {
                 Ok(Bytes::new())
@@ -50,12 +47,15 @@ impl ChunkFetcher {
         }
     }
 
-    fn get_chunk_size(&self, position_start: usize, position_end: usize, stream_chunk_size: usize) -> usize {
-        let len = (position_end - position_start) + 1;
-        if len >= stream_chunk_size {
-            stream_chunk_size
-        } else {
-            len
-        }
+    fn get_chunk_size(&self, position_start: usize, position_end: usize, stream_chunk_size: usize, chunk_start_offset: usize) -> usize {
+        // total bytes requested in this range
+        let total_requested = position_end
+            .checked_sub(position_start)
+            .map(|d| d + 1)
+            .unwrap_or(0);
+        // bytes available in this chunk after the start offset
+        let avail_in_chunk = stream_chunk_size.saturating_sub(chunk_start_offset);
+        // use the smaller of requested vs available
+        total_requested.min(avail_in_chunk)
     }
 }

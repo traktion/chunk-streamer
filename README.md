@@ -1,2 +1,3 @@
 # chunk-streamer
-Stream Autonomi chunks over futures::stream 
+
+Stream Autonomi chunks over futures::stream.
