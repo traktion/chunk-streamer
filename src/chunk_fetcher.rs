@@ -1,21 +1,22 @@
-use autonomi::{ChunkAddress, Client};
+use autonomi::{ChunkAddress};
 use bytes::{Bytes};
 use log::{info};
 use self_encryption::{DataMap, EncryptedChunk, Error};
+use crate::chunk_streamer::ChunkGetter;
 
 #[derive(Clone)]
 pub struct ChunkFetcher {
-    autonomi_client: Client,
 }
 
 impl ChunkFetcher {
     
-    pub fn new(autonomi_client: Client) -> Self {
-        ChunkFetcher { autonomi_client }
+    pub fn new() -> Self {
+        ChunkFetcher { }
     }
 
     pub async fn fetch_from_data_map_chunk(
         &self,
+        chunk_getter: impl ChunkGetter,
         data_map: DataMap,
         position_start: u64,
         position_end: u64
@@ -35,7 +36,10 @@ impl ChunkFetcher {
             Some(chunk_info) => {
                 info!("get chunk from data map with hash {:?} and size {}", chunk_info.dst_hash, chunk_info.src_size);
                 let derived_chunk_size = self.get_chunk_size(position_start_usize, position_end_usize, chunk_info.src_size, chunk_start_offset);
-                let chunk = self.autonomi_client.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await.expect("get chunk failed");
+                let chunk = match chunk_getter.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await {
+                    Ok(chunk) => chunk,
+                    Err(e) => return Err(Error::Generic(format!("get chunk failed [{}]", e.to_string()))),
+                };
 
                 info!("self decrypt chunk: {:?}", chunk_info.dst_hash);
                 let encrypted_chunks = &[EncryptedChunk { index: chunk_position, content: chunk.clone().value }];

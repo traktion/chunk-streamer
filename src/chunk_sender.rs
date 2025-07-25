@@ -1,32 +1,32 @@
-use autonomi::Client;
 use bytes::Bytes;
 use log::info;
 use self_encryption::{DataMap, Error};
 use tokio::sync::mpsc::{Sender};
 use tokio::task::JoinHandle;
 use crate::chunk_fetcher::ChunkFetcher;
+use crate::chunk_streamer::ChunkGetter;
 
 pub struct ChunkSender {
     sender: Sender<JoinHandle<Result<Bytes, Error>>>,
     id: String,
-    data_map: DataMap,
-    autonomi_client: Client,
+    data_map: DataMap
 }
 
 impl ChunkSender {
-    pub fn new(sender: Sender<JoinHandle<Result<Bytes, Error>>>, id: String, data_map: DataMap, autonomi_client: Client) -> ChunkSender {
-        ChunkSender { sender, id, data_map, autonomi_client }
+    pub fn new(sender: Sender<JoinHandle<Result<Bytes, Error>>>, id: String, data_map: DataMap) -> ChunkSender {
+        ChunkSender { sender, id, data_map }
     }
     
-    pub async fn send(&self, mut range_from: u64, range_to: u64) {
+    pub async fn send(&self, chunk_getter: impl ChunkGetter, mut range_from: u64, range_to: u64) {
         let mut chunk_count = 1;
         while range_from < range_to {
             info!("Async fetch chunk [{}] at file position [{}] for ID [{}], channel capacity [{}] of [{}]", chunk_count, range_from, self.id, self.sender.capacity(), self.sender.max_capacity());
-            let chunk_fetcher = ChunkFetcher::new(self.autonomi_client.clone());
+            let chunk_fetcher = ChunkFetcher::new();
             let data_map_clone = self.data_map.clone();
+            let local_chunk_getter = chunk_getter.clone();
 
             let join_handle = tokio::spawn(async move {
-                chunk_fetcher.fetch_from_data_map_chunk(data_map_clone, range_from, range_to).await
+                chunk_fetcher.fetch_from_data_map_chunk(local_chunk_getter.clone(), data_map_clone, range_from, range_to).await
             });
             let result = self.sender.send(join_handle).await;
             if result.is_err() {

@@ -30,7 +30,13 @@ impl ChunkReceiver {
                         Poll::Pending
                     }
                     Poll::Ready(result) => {
-                        let data = result.unwrap().unwrap();
+                        let data = match result {
+                            Ok(result) => match result {
+                                Ok(bytes) => bytes,
+                                Err(e) => panic!("Error getting chunk data: {:?}", e),
+                            },
+                            Err(e) => panic!("Error getting chunk data: {:?}", e)
+                        };
                         let bytes_read = data.len();
                         if bytes_read > 0 {
                             info!("Read [{}] bytes from chunk [{}] at file position [{}] for ID [{}]", bytes_read, self.chunk_index, self.file_position, self.id);
