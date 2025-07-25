@@ -11,21 +11,22 @@ pub trait ChunkGetter: Clone + Send + Sync + 'static {
     async fn chunk_get(&self, address: &ChunkAddress) -> Result<Chunk, GetError>;
 }
 
-pub struct ChunkStreamer {
+pub struct ChunkStreamer<T> {
     id: String,
     data_map: DataMap,
+    chunk_getter: T,
     download_threads: usize,
 }
 
-impl ChunkStreamer {
-    pub fn new(id: String, data_map: DataMap, download_threads: usize) -> ChunkStreamer {
-        ChunkStreamer { id, data_map, download_threads }
+impl<T: ChunkGetter> ChunkStreamer<T> {
+    pub fn new(id: String, data_map: DataMap, chunk_getter: T, download_threads: usize) -> ChunkStreamer<T> {
+        ChunkStreamer { id, data_map, chunk_getter, download_threads }
     }
     
-    pub fn open(&self, chunk_getter: impl ChunkGetter, range_from: u64, range_to: u64) -> ChunkReceiver {
+    pub fn open(&self, range_from: u64, range_to: u64) -> ChunkReceiver {
         let (sender, receiver) = channel(self.download_threads);
-        let chunk_sender = ChunkSender::new(sender, self.id.clone(), self.data_map.clone());
-        tokio::spawn( Box::pin(async move { chunk_sender.send(chunk_getter, range_from, range_to).await; }));
+        let chunk_sender = ChunkSender::new(sender, self.id.clone(), self.chunk_getter.clone(), self.data_map.clone());
+        tokio::spawn( Box::pin(async move { chunk_sender.send(range_from, range_to).await; }));
         ChunkReceiver::new(receiver, self.id.clone())
     }
 }

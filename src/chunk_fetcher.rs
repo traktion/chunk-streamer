@@ -5,18 +5,18 @@ use self_encryption::{DataMap, EncryptedChunk, Error};
 use crate::chunk_streamer::ChunkGetter;
 
 #[derive(Clone)]
-pub struct ChunkFetcher {
+pub struct ChunkFetcher<T> {
+    chunk_getter: T
 }
 
-impl ChunkFetcher {
+impl<T: ChunkGetter> ChunkFetcher<T> {
     
-    pub fn new() -> Self {
-        ChunkFetcher { }
+    pub fn new(chunk_getter: T) -> Self {
+        ChunkFetcher { chunk_getter }
     }
 
     pub async fn fetch_from_data_map_chunk(
         &self,
-        chunk_getter: impl ChunkGetter,
         data_map: DataMap,
         position_start: u64,
         position_end: u64
@@ -36,7 +36,7 @@ impl ChunkFetcher {
             Some(chunk_info) => {
                 info!("get chunk from data map with hash {:?} and size {}", chunk_info.dst_hash, chunk_info.src_size);
                 let derived_chunk_size = self.get_chunk_size(position_start_usize, position_end_usize, chunk_info.src_size, chunk_start_offset);
-                let chunk = match chunk_getter.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await {
+                let chunk = match self.chunk_getter.chunk_get(&ChunkAddress::new(chunk_info.dst_hash)).await {
                     Ok(chunk) => chunk,
                     Err(e) => return Err(Error::Generic(format!("get chunk failed [{}]", e.to_string()))),
                 };
