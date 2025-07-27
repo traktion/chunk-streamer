@@ -33,9 +33,15 @@ impl ChunkReceiver {
                         let data = match result {
                             Ok(result) => match result {
                                 Ok(bytes) => bytes,
-                                Err(e) => panic!("Error getting chunk data: {:?}", e),
+                                Err(e) => {
+                                    self.receiver.close();
+                                    panic!("Error getting chunk data: {:?}", e)
+                                },
                             },
-                            Err(e) => panic!("Error getting chunk data: {:?}", e)
+                            Err(e) => {
+                                self.receiver.close();
+                                panic!("Error getting chunk data: {:?}", e)
+                            }
                         };
                         let bytes_read = data.len();
                         if bytes_read > 0 {
