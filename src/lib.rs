@@ -1,6 +1,6 @@
 pub mod chunk_streamer;
 mod chunk_fetcher;
-mod chunk_receiver;
+pub mod chunk_receiver;
 mod chunk_sender;
 
 pub use autonomi;
