@@ -42,7 +42,7 @@ impl<T: ChunkGetter> ChunkFetcher<T> {
                 };
 
                 info!("self decrypt chunk: {:?}", chunk_info.dst_hash);
-                let encrypted_chunks = &[EncryptedChunk { index: chunk_position, content: chunk.clone().value }];
+                let encrypted_chunks = &[EncryptedChunk { index: chunk_position, content: chunk.value }];
                 self_encryption::decrypt_range(&data_map, encrypted_chunks, chunk_start_offset, derived_chunk_size)
             }
             None => {
