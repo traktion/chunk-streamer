@@ -12,10 +12,10 @@ categories = ["network-programming"]
 exclude = [".github", ".gitignore", "target/"]
 
 [dependencies]
-autonomi = "0.5.2"
+autonomi = "=0.5.2"
 bytes = "1.10"
 log = "0.4"
-self_encryption = "0.30"
+self_encryption = "=0.30"
 tokio = "1.45"
 futures = "0.3"
 futures-util = "0.3"
