@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use autonomi::{Chunk, ChunkAddress};
-use autonomi::client::GetError;
-use self_encryption::DataMap;
+use autonomi_old::{Chunk, ChunkAddress};
+use autonomi_old::client::GetError;
+use self_encryption_old::DataMap;
 use tokio::sync::mpsc::channel;
 use crate::chunk_receiver::ChunkReceiver;
 use crate::chunk_sender::ChunkSender;

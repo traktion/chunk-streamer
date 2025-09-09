@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use log::info;
-use self_encryption::{DataMap, Error};
+use self_encryption_old::{DataMap, Error};
 use tokio::sync::mpsc::{Sender};
 use tokio::task::JoinHandle;
 use crate::chunk_fetcher::ChunkFetcher;

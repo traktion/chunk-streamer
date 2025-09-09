@@ -4,7 +4,7 @@ use bytes::Bytes;
 use futures::Stream;
 use futures_util::{FutureExt};
 use log::{debug, info};
-use self_encryption::Error;
+use self_encryption_old::Error;
 use tokio::sync::mpsc::{Receiver};
 use tokio::task::{JoinHandle};
 
