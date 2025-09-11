@@ -42,10 +42,14 @@ impl<T: ChunkGetter> ChunkStreamer<T> {
     pub async fn get_stream_size(&self) -> usize {
         let data_map_builder = DataMapBuilder::new(self.chunk_getter.clone(), self.download_threads);
         let data_map = data_map_builder.get_data_map_from_bytes(&self.data_map_chunk_bytes).await.expect("failed to build data map from chunk");
-        
-        let get_chunk_functor = blocking_chunk_getter(self.chunk_getter.clone());
-        let stream = streaming_decrypt(&data_map, get_chunk_functor)
-            .expect("failed to execute streaming_decrypt");
-        stream.file_size()
+        let local_chunk_getter = self.chunk_getter.clone();
+
+        let join_handle = tokio::task::spawn_blocking(move || {
+            let get_chunk_functor = blocking_chunk_getter(local_chunk_getter);
+            let stream = streaming_decrypt(&data_map, get_chunk_functor)
+                .expect("failed to execute streaming_decrypt");
+            stream.file_size()
+        });
+        join_handle.await.unwrap_or(0)
     }
 }
