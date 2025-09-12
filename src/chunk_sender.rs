@@ -2,7 +2,7 @@ use std::cmp::min;
 use crate::chunk_getter::{blocking_chunk_getter};
 use crate::chunk_streamer::ChunkGetter;
 use bytes::Bytes;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use self_encryption::{streaming_decrypt, DataMap, Error};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -23,10 +23,11 @@ impl<T: ChunkGetter> ChunkSender<T> {
 
     pub async fn send(&self, mut range_from: u64, range_to: u64) {
         let mut chunk_count = 1;
-        let len = min(CHUNK_SIZE, range_to - range_from);
+        let range_to_inclusive = range_to + 1;
+        let len = min(CHUNK_SIZE, range_to_inclusive - range_from);
 
-        while range_from < range_to {
-            info!("Async fetch chunk [{}] at range_from [{}] to range_to [{}] using len [{}] for ID [{}], channel capacity [{}] of [{}]", chunk_count, range_from, range_to, len, self.id, self.sender.capacity(), self.sender.max_capacity());
+        while range_from < range_to_inclusive {
+            info!("Async fetch chunk [{}] at range_from [{}] to range_to [{}] using len [{}] for ID [{}], channel capacity [{}] of [{}]", chunk_count, range_from, range_to_inclusive, len, self.id, self.sender.capacity(), self.sender.max_capacity());
 
             let local_data_map = self.data_map.clone();
             let local_chunk_getter = self.chunk_getter.clone();
@@ -47,7 +48,7 @@ impl<T: ChunkGetter> ChunkSender<T> {
             });
             let result = self.sender.send(join_handle).await;
             if result.is_err() {
-                error!("Send aborted: {}", result.unwrap_err().to_string());
+                warn!("Send aborted: {}", result.unwrap_err().to_string());
                 break;
             };
 

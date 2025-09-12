@@ -33,7 +33,6 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
                     // The data_map_bytes could be an Archive, we shall return earlier for that case
                     match Self::get_raw_data_map(&data_map_bytes) {
                         Ok(mut data_map) => {
-                            debug!("Restoring from data_map:\n{data_map:?}");
                             if !data_map.is_child() {
                                 return Ok(data_map);
                             }
