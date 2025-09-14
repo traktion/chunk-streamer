@@ -2,7 +2,7 @@ use std::cmp::min;
 use crate::chunk_getter::{blocking_chunk_getter};
 use crate::chunk_streamer::ChunkGetter;
 use bytes::Bytes;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use self_encryption::{streaming_decrypt, DataMap, Error};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -42,7 +42,7 @@ impl<T: ChunkGetter> ChunkSender<T> {
                 let bytes = stream.get_range(
                     usize_range_from,
                     usize_len
-                ).expect("failed to get bytes in range");
+                ).unwrap_or(Bytes::new());
                 debug!("get_range({}, {}) returned [{}] bytes of total [{}]", usize_range_from, usize_len, bytes.len(), stream.file_size());
                 Ok(bytes)
             });
