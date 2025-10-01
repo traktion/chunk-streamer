@@ -1614,7 +1614,7 @@ dependencies = [
 
 [[package]]
 name = "chunk-streamer"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "async-trait",
  "autonomi",
@@ -1623,7 +1623,7 @@ dependencies = [
  "futures-util",
  "log",
  "rmp-serde",
- "self_encryption 0.34.0",
+ "self_encryption 0.34.1",
  "tokio",
 ]
 
@@ -5350,9 +5350,9 @@ dependencies = [
 
 [[package]]
 name = "self_encryption"
-version = "0.34.0"
+version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43f85a17897458dccae05b1339088f0efb4ac04333b9e749264fd437443ffd36"
+checksum = "636a9d557a649b7c30068e270212eb42967384034de9fa8250fbbc55b65b43a7"
 dependencies = [
  "aes",
  "bincode",
