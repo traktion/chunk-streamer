@@ -30,31 +30,34 @@ impl ChunkReceiver {
                         Poll::Pending
                     }
                     Poll::Ready(result) => {
-                        let data = match result {
+                        match result {
                             Ok(result) => match result {
-                                Ok(bytes) => bytes,
+                                Ok(data) => {
+                                    let bytes_read = data.len();
+                                    if bytes_read > 0 {
+                                        info!("Read [{}] bytes from chunk [{}] at file position [{}] for ID [{}]", bytes_read, self.chunk_index, self.file_position, self.id);
+                                        self.file_position += bytes_read;
+                                        self.chunk_index += 1;
+                                        self.current_task = None;
+                                        Poll::Ready(Some(Ok(data))) // Sending data to the client here
+                                    } else {
+                                        info!("No more data at file position [{}] for ID [{}]", self.file_position, self.id);
+                                        debug!("End of stream A - closing channel");
+                                        self.receiver.close();
+                                        Poll::Ready(None) // end of stream - break
+                                    }
+                                }
                                 Err(e) => {
                                     self.receiver.close();
-                                    panic!("Error getting chunk data: {:?}", e)
+                                    debug!("Error getting chunk data: {:?}", e);
+                                    Poll::Ready(Some(Err(e))) // Sending error to the client here
                                 },
                             },
                             Err(e) => {
                                 self.receiver.close();
-                                panic!("Error getting chunk data: {:?}", e)
+                                debug!("Error getting chunk data: {:?}", e);
+                                Poll::Ready(Some(Err(Error::Generic(e.to_string())))) // Sending error to the client here
                             }
-                        };
-                        let bytes_read = data.len();
-                        if bytes_read > 0 {
-                            info!("Read [{}] bytes from chunk [{}] at file position [{}] for ID [{}]", bytes_read, self.chunk_index, self.file_position, self.id);
-                            self.file_position += bytes_read;
-                            self.chunk_index += 1;
-                            self.current_task = None;
-                            Poll::Ready(Some(Ok(data))) // Sending data to the client here
-                        } else {
-                            info!("No more data at file position [{}] for ID [{}]", self.file_position, self.id);
-                            debug!("End of stream A - closing channel");
-                            self.receiver.close();
-                            Poll::Ready(None) // end of stream - break
                         }
                     },
                 }

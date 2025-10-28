@@ -2,7 +2,7 @@ use std::cmp::min;
 use crate::chunk_getter::{blocking_chunk_getter};
 use crate::chunk_streamer::ChunkGetter;
 use bytes::Bytes;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use self_encryption::{streaming_decrypt, DataMap, Error};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
@@ -27,7 +27,8 @@ impl<T: ChunkGetter> ChunkSender<T> {
         let len = min(CHUNK_SIZE, range_to_inclusive - range_from);
 
         while range_from < range_to_inclusive {
-            info!("Async fetch chunk [{}] at range_from [{}] to range_to [{}] using len [{}] for ID [{}], channel capacity [{}] of [{}]", chunk_count, range_from, range_to, len, self.id, self.sender.capacity(), self.sender.max_capacity());
+            info!("Async fetch chunk [{}] at range_from [{}] to range_to [{}] using len [{}] for ID [{}], channel capacity [{}] of [{}]",
+                chunk_count, range_from, range_to, len, self.id, self.sender.capacity(), self.sender.max_capacity());
 
             let local_data_map = self.data_map.clone();
             let local_chunk_getter = self.chunk_getter.clone();
@@ -39,12 +40,17 @@ impl<T: ChunkGetter> ChunkSender<T> {
 
                 let usize_range_from = usize::try_from(range_from).expect("failed range_from conversion");
                 let usize_len = usize::try_from(len).expect("failed len conversion");
-                let bytes = stream.get_range(usize_range_from, usize_len).unwrap_or_else(|e| {
-                    error!("error in stream.get_range: [{}]", e.to_string());
-                    Bytes::new()
-                });
-                debug!("get_range({}, {}) returned [{}] bytes of total [{}]", usize_range_from, usize_len, bytes.len(), stream.file_size());
-                Ok(bytes)
+                match stream.get_range(usize_range_from, usize_len) {
+                    Ok(bytes) => {
+                        debug!("get_range({}, {}) returned [{}] bytes of total [{}]",
+                            usize_range_from, usize_len, bytes.len(), stream.file_size());
+                        Ok(bytes)
+                    },
+                    Err(e) => {
+                        debug!("error in stream.get_range: [{}]", e.to_string());
+                        Err(e)
+                    }
+                }
             });
             let result = self.sender.send(join_handle).await;
             if result.is_err() {
