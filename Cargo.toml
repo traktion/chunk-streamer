@@ -1,6 +1,6 @@
 [package]
 name = "chunk-streamer"
-version = "0.4.7"
+version = "0.4.8"
 edition = "2024"
 authors = ["Paul Green"]
 description = "Chunk Streamer library streams Autonomi data as a futures::stream"
@@ -12,8 +12,8 @@ categories = ["network-programming"]
 exclude = [".github", ".gitignore", "target/"]
 
 [dependencies]
-autonomi = "0.6.3"
-bytes = "1.10"
+autonomi = "0.6.4"
+bytes = "1.11"
 log = "0.4"
 self_encryption = "0.34.2"
 tokio = "1.48"
