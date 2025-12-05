@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use autonomi::client::GetError;
 use autonomi::{Chunk, ChunkAddress};
 use bytes::Bytes;
+use log::warn;
 use self_encryption::streaming_decrypt;
 use tokio::sync::mpsc::channel;
 use crate::chunk_getter::blocking_chunk_getter;
@@ -32,16 +33,29 @@ impl<T: ChunkGetter> ChunkStreamer<T> {
             Ok(data_map) => {
                 let (sender, receiver) = channel(self.download_threads);
                 let chunk_sender = ChunkSender::new(sender, self.id.clone(), self.chunk_getter.clone(), data_map);
-                tokio::spawn(Box::pin(async move { chunk_sender.send(range_from, range_to).await; }));
+                tokio::spawn(Box::pin(async move { chunk_sender.send(range_from, range_to).await }));
                 Ok(ChunkReceiver::new(receiver, self.id.clone()))
             },
-            Err(error) => Err(error)
+            Err(_) => {
+                // if not a datamap, return the raw chunk bytes
+                let (sender, receiver) = channel(self.download_threads);
+                let raw_chunk = self.data_map_chunk_bytes.clone();
+                let join_handle = tokio::task::spawn_blocking(move || { Ok(raw_chunk) });
+                tokio::spawn(Box::pin(async move { sender.send(join_handle).await }));
+                Ok(ChunkReceiver::new(receiver, self.id.clone()))
+            }
         }
     }
 
     pub async fn get_stream_size(&self) -> usize {
         let data_map_builder = DataMapBuilder::new(self.chunk_getter.clone(), self.download_threads);
-        let data_map = data_map_builder.get_data_map_from_bytes(&self.data_map_chunk_bytes).await.expect("failed to build data map from chunk");
+        let data_map = match data_map_builder.get_data_map_from_bytes(&self.data_map_chunk_bytes).await {
+            Ok(data_map) => data_map,
+            Err(_) => {
+                warn!("failed to build data map from chunk");
+                return 0;
+            }
+        };
         let local_chunk_getter = self.chunk_getter.clone();
 
         let join_handle = tokio::task::spawn_blocking(move || {

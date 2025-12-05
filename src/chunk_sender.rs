@@ -35,19 +35,24 @@ impl<T: ChunkGetter> ChunkSender<T> {
 
             let join_handle = tokio::task::spawn_blocking(move || {
                 let get_chunk_functor = blocking_chunk_getter(local_chunk_getter);
-                let stream = streaming_decrypt(&local_data_map, &get_chunk_functor)
-                    .expect("failed to execute streaming_decrypt");
-
-                let usize_range_from = usize::try_from(range_from).expect("failed range_from conversion");
-                let usize_len = usize::try_from(len).expect("failed len conversion");
-                match stream.get_range(usize_range_from, usize_len) {
-                    Ok(bytes) => {
-                        debug!("get_range({}, {}) returned [{}] bytes of total [{}]",
+                match streaming_decrypt(&local_data_map, &get_chunk_functor) {
+                    Ok(stream) => {
+                        let usize_range_from = usize::try_from(range_from).expect("failed range_from conversion");
+                        let usize_len = usize::try_from(len).expect("failed len conversion");
+                        match stream.get_range(usize_range_from, usize_len) {
+                            Ok(bytes) => {
+                                debug!("get_range({}, {}) returned [{}] bytes of total [{}]",
                             usize_range_from, usize_len, bytes.len(), stream.file_size());
-                        Ok(bytes)
-                    },
+                                Ok(bytes)
+                            },
+                            Err(e) => {
+                                debug!("error in stream.get_range: [{}]", e.to_string());
+                                Err(e)
+                            }
+                        }
+                    }
                     Err(e) => {
-                        debug!("error in stream.get_range: [{}]", e.to_string());
+                        warn!("failed to execute streaming_decrypt");
                         Err(e)
                     }
                 }

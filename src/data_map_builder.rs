@@ -37,7 +37,10 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
                                 return Ok(data_map);
                             }
                             data_map.child = None;
-                            data_map_bytes = self.fetch_from_data_map(&data_map).await.expect("fetch_from_data_map failed");
+                            data_map_bytes = match self.fetch_from_data_map(&data_map).await {
+                                Ok(data_map) => data_map,
+                                Err(e) => return Err(e)
+                            }
                         }
                         Err(e) => {
                             info!("Failed to deserialize data_map_bytes: {e:?}");
@@ -51,8 +54,10 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
 
     fn get_raw_data_map(data_map_bytes: &Bytes) -> Result<DataMap, GetError> {
         // Fall back to old format and convert
-        let data_map_level = rmp_serde::from_slice::<DataMapLevel>(data_map_bytes)
-            .map_err(GetError::InvalidDataMap).expect("Failed to deserialize OLD data map level");
+        let data_map_level = match rmp_serde::from_slice::<DataMapLevel>(data_map_bytes) {
+            Ok(data_map_level) => data_map_level,
+            Err(e) => return Err(GetError::InvalidDataMap(e))
+        };
 
         let (old_data_map, child) = match &data_map_level {
             DataMapLevel::First(map) => (map, None),
