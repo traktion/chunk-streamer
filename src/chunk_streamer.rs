@@ -51,8 +51,8 @@ impl<T: ChunkGetter> ChunkStreamer<T> {
         let data_map_builder = DataMapBuilder::new(self.chunk_getter.clone(), self.download_threads);
         let data_map = match data_map_builder.get_data_map_from_bytes(&self.data_map_chunk_bytes).await {
             Ok(data_map) => data_map,
-            Err(_) => {
-                warn!("failed to build data map from chunk");
+            Err(e) => {
+                warn!("failed to build data map from chunk: {}", e);
                 return 0;
             }
         };
@@ -60,9 +60,13 @@ impl<T: ChunkGetter> ChunkStreamer<T> {
 
         let join_handle = tokio::task::spawn_blocking(move || {
             let get_chunk_functor = blocking_chunk_getter(local_chunk_getter);
-            let stream = streaming_decrypt(&data_map, get_chunk_functor)
-                .expect("failed to execute streaming_decrypt");
-            stream.file_size()
+            match streaming_decrypt(&data_map, get_chunk_functor) {
+                Ok(stream) => stream.file_size(),
+                Err(e) => {
+                    warn!("failed to call streaming_decrypt: {}", e);
+                    0
+                }
+            }
         });
         join_handle.await.unwrap_or(0)
     }
