@@ -1,6 +1,6 @@
 [package]
 name = "chunk-streamer"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 authors = ["Paul Green"]
 description = "Chunk Streamer library streams Autonomi data as a futures::stream"
