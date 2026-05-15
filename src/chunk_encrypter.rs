@@ -1,10 +1,9 @@
 use std::time::Instant;
-use autonomi::Chunk;
-use autonomi::chunk::DataMapChunk;
-use autonomi::client::PutError;
-use autonomi::self_encryption::encrypt;
+use ant_core::data::error::{Error, Result};
+use ant_core::data::{DataMap};
 use bytes::Bytes;
 use log::debug;
+use self_encryption::{encrypt, EncryptedChunk};
 
 pub struct ChunkEncrypter {
 }
@@ -18,15 +17,19 @@ impl ChunkEncrypter {
         &self,
         is_public: bool,
         bytes: Bytes
-    ) -> Result<(Vec<Chunk>, DataMapChunk), PutError> {
+    ) -> Result<(Vec<EncryptedChunk>, DataMap)> {
         let start = Instant::now();
-        let (data_map_chunk, mut chunks) = encrypt(bytes)?;
+        let (data_map_chunk, chunks) = match encrypt(bytes) {
+            Ok((data_map_chunk, chunks)) => (data_map_chunk, chunks),
+            Err(error) => return Err(Error::Encryption(error.to_string())),
+        };
 
-        if is_public {
+        // still needed?
+        /*if is_public {
             chunks.push(data_map_chunk.clone());
-        }
+        }*/
 
         debug!("Encryption took: {:.2?}", start.elapsed());
-        Ok((chunks, DataMapChunk(data_map_chunk)))
+        Ok((chunks, data_map_chunk))
     }
 }

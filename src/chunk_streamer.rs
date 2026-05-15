@@ -1,18 +1,18 @@
+use ant_core::data::{DataChunk, XorName};
 use crate::chunk_receiver::ChunkReceiver;
 use crate::chunk_sender::ChunkSender;
 use async_trait::async_trait;
-use autonomi::client::GetError;
-use autonomi::{Chunk, ChunkAddress};
+use ant_core::data::error::{Result};
 use bytes::Bytes;
 use log::warn;
-use self_encryption::streaming_decrypt;
+use self_encryption::{streaming_decrypt};
 use tokio::sync::mpsc::channel;
 use crate::chunk_getter::blocking_chunk_getter;
 use crate::data_map_builder::DataMapBuilder;
 
 #[async_trait]
 pub trait ChunkGetter: Clone + Send + Sync + 'static {
-    async fn chunk_get(&self, address: &ChunkAddress) -> Result<Chunk, GetError>;
+    async fn chunk_get(&self, address: &XorName) -> Result<Option<DataChunk>>;
 }
 
 pub struct ChunkStreamer<T> {
@@ -27,7 +27,7 @@ impl<T: ChunkGetter> ChunkStreamer<T> {
         ChunkStreamer { id, data_map_chunk_bytes, chunk_getter, download_threads }
     }
     
-    pub async fn open(&self, range_from: u64, range_to: u64) -> Result<ChunkReceiver, GetError> {
+    pub async fn open(&self, range_from: u64, range_to: u64) -> Result<ChunkReceiver> {
         let data_map_builder = DataMapBuilder::new(self.chunk_getter.clone(), self.download_threads);
         match data_map_builder.get_data_map_from_bytes(&self.data_map_chunk_bytes).await {
             Ok(data_map) => {
