@@ -1,11 +1,9 @@
-use autonomi::ChunkAddress;
-use autonomi::client::GetError;
-use autonomi::self_encryption::DataMapLevel;
+use ant_core::data::error::{Error, Result};
 use bytes::Bytes;
 use futures_util::stream::FuturesUnordered;
 use futures_util::StreamExt;
 use log::{debug, error, info};
-use self_encryption::{ChunkInfo, DataMap, EncryptedChunk};
+use self_encryption::{DataMap, EncryptedChunk};
 use crate::chunk_streamer::ChunkGetter;
 
 pub struct DataMapBuilder<T> {
@@ -18,71 +16,20 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
         DataMapBuilder {chunk_getter, download_threads}
     }
 
-    pub async fn get_data_map_from_bytes(&self, data_map_bytes: &Bytes) -> Result<DataMap, GetError> {
+    pub async fn get_data_map_from_bytes(&self, data_map_bytes: &Bytes) -> Result<DataMap> {
         match rmp_serde::from_slice::<DataMap>(&data_map_bytes) {
             Ok(data_map) => {
                 debug!("Attempting to deserialize NEW format data map chunk");
                 Ok(data_map)
             },
-            Err(_) => {
-                debug!("Attempting to deserialize OLD format data map chunk");
-
-                let mut data_map_bytes = data_map_bytes.clone();
-
-                loop {
-                    // The data_map_bytes could be an Archive, we shall return earlier for that case
-                    match Self::get_raw_data_map(&data_map_bytes) {
-                        Ok(mut data_map) => {
-                            if !data_map.is_child() {
-                                return Ok(data_map);
-                            }
-                            data_map.child = None;
-                            data_map_bytes = match self.fetch_from_data_map(&data_map).await {
-                                Ok(data_map) => data_map,
-                                Err(e) => return Err(e)
-                            }
-                        }
-                        Err(e) => {
-                            info!("Failed to deserialize data_map_bytes: {e:?}");
-                            return Err(GetError::UnrecognizedDataMap("Failed to deserialize data_map_bytes".to_string()));
-                        }
-                    }
-                }
+            Err(e) => {
+                info!("Failed to deserialize data_map_bytes: {e:?}");
+                Err(Error::InvalidData("Failed to deserialize data_map_bytes".to_string()))
             }
         }
     }
 
-    fn get_raw_data_map(data_map_bytes: &Bytes) -> Result<DataMap, GetError> {
-        // Fall back to old format and convert
-        let data_map_level = match rmp_serde::from_slice::<DataMapLevel>(data_map_bytes) {
-            Ok(data_map_level) => data_map_level,
-            Err(e) => return Err(GetError::InvalidDataMap(e))
-        };
-
-        let (old_data_map, child) = match &data_map_level {
-            DataMapLevel::First(map) => (map, None),
-            DataMapLevel::Additional(map) => (map, Some(0)),
-        };
-
-        // Convert to new format
-        let chunk_identifiers: Vec<ChunkInfo> = old_data_map
-            .infos()
-            .iter()
-            .map(|ck_info| ChunkInfo {
-                index: ck_info.index,
-                dst_hash: ck_info.dst_hash,
-                src_hash: ck_info.src_hash,
-                src_size: ck_info.src_size,
-            })
-            .collect();
-
-        Ok(DataMap {
-            chunk_identifiers,
-            child,
-        })
-    }
-
-    async fn fetch_from_data_map(&self, data_map: &DataMap) -> Result<Bytes, GetError> {
+    async fn fetch_from_data_map(&self, data_map: &DataMap) -> Result<Bytes> {
         let total_chunks = data_map.infos().len();
         debug!("Fetching {total_chunks} encrypted data chunks from datamap {data_map:?}");
 
@@ -90,16 +37,20 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
         for (i, info) in data_map.infos().into_iter().enumerate() {
             download_tasks.push(async move {
                 let idx = i + 1;
-                let chunk_addr = ChunkAddress::new(info.dst_hash);
+                let chunk_addr = info.dst_hash;
 
                 info!("Fetching chunk {idx}/{total_chunks}({chunk_addr:?})");
 
-                match self.chunk_getter.chunk_get(&chunk_addr).await {
-                    Ok(chunk) => {
+                match self.chunk_getter.chunk_get(&chunk_addr.0).await {
+                    Ok(Some(chunk)) => {
                         info!("Successfully fetched chunk {idx}/{total_chunks}({chunk_addr:?})");
                         Ok(EncryptedChunk {
-                            content: chunk.value,
+                            content: chunk.content,
                         })
+                    }
+                    Ok(None) => {
+                        error!("Chunk not found: {chunk_addr:?}");
+                        Err(Error::Network("Chunk not found".to_string()))
                     }
                     Err(err) => {
                         error!(
@@ -114,12 +65,12 @@ impl<T: ChunkGetter> DataMapBuilder<T> {
             Self::process_tasks_with_max_concurrency(download_tasks, self.download_threads)
                 .await
                 .into_iter()
-                .collect::<Result<Vec<EncryptedChunk>, GetError>>()?;
+                .collect::<Result<Vec<EncryptedChunk>>>()?;
         debug!("Successfully fetched all {total_chunks} encrypted chunks");
 
         let data = self_encryption::decrypt(data_map, &encrypted_chunks).map_err(|e| {
             error!("Error decrypting encrypted_chunks: {e:?}");
-            GetError::UnrecognizedDataMap("Error decrypting encrypted_chunks".to_string())
+            Error::InvalidData("Error decrypting encrypted_chunks".to_string())
         })?;
         debug!("Successfully decrypted all {total_chunks} chunks");
 
