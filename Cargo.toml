@@ -12,10 +12,10 @@ categories = ["network-programming"]
 exclude = [".github", ".gitignore", "target/"]
 
 [dependencies]
-ant-core = { path = "../withautonomi/ant-client/ant-core" }
+ant-core = "=0.2.4"
 bytes = "1.11"
 log = "0.4"
-self_encryption = "0.36.0"
+self_encryption = "=0.35.0"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
 futures-util = "0.3"
